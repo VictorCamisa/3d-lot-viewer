@@ -1,10 +1,16 @@
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState } from "react";
-import type { Lot } from "./Loteamento3D";
+import type { Lot, LotView } from "./Loteamento3D";
 
 const STATUS_LABEL: Record<Lot["status"], string> = {
   available: "Disponível",
@@ -25,7 +31,7 @@ export function LotDetailSheet({
   isAdmin,
   onChanged,
 }: {
-  lot: Lot | null;
+  lot: LotView | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
   isAdmin: boolean;
@@ -36,6 +42,7 @@ export function LotDetailSheet({
   if (!lot) return null;
 
   const setStatus = async (status: Lot["status"]) => {
+    if (!lot.id) return;
     setSaving(true);
     const { error } = await supabase.from("lots").update({ status }).eq("id", lot.id);
     setSaving(false);
@@ -47,14 +54,23 @@ export function LotDetailSheet({
     onChanged();
   };
 
-  const priceFormatted = new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    maximumFractionDigits: 0,
-  }).format(Number(lot.price));
+  const areaFormatted = lot.area.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+  });
+
+  const priceFormatted =
+    lot.price != null
+      ? new Intl.NumberFormat("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+          maximumFractionDigits: 0,
+        }).format(lot.price)
+      : "Sob consulta";
 
   const waMsg = encodeURIComponent(
-    `Olá! Tenho interesse no lote ${lot.number} (${lot.area_m2} m² — ${priceFormatted}).`,
+    `Olá! Tenho interesse no lote ${lot.number} da quadra ${lot.quadra} (${areaFormatted} m²${
+      lot.price != null ? ` — ${priceFormatted}` : ""
+    }).`,
   );
 
   return (
@@ -64,6 +80,7 @@ export function LotDetailSheet({
           <div className="flex items-center gap-3">
             <SheetTitle className="text-2xl">Lote {lot.number}</SheetTitle>
             <Badge variant={STATUS_VARIANT[lot.status]}>{STATUS_LABEL[lot.status]}</Badge>
+            {lot.tipo === "comercial" && <Badge variant="outline">Comercial</Badge>}
           </div>
           <SheetDescription>Detalhes e disponibilidade do lote</SheetDescription>
         </SheetHeader>
@@ -72,7 +89,7 @@ export function LotDetailSheet({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-xs uppercase tracking-wide text-muted-foreground">Área</p>
-              <p className="text-lg font-semibold">{lot.area_m2} m²</p>
+              <p className="text-lg font-semibold">{areaFormatted} m²</p>
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-muted-foreground">Preço</p>
@@ -81,14 +98,12 @@ export function LotDetailSheet({
             <div>
               <p className="text-xs uppercase tracking-wide text-muted-foreground">Dimensões</p>
               <p className="text-lg font-semibold">
-                {lot.width} × {lot.depth} m
+                {lot.width.toFixed(1)} × {lot.depth.toFixed(1)} m
               </p>
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-muted-foreground">Quadra</p>
-              <p className="text-lg font-semibold">
-                {String.fromCharCode(65 + lot.grid_z)}-{lot.grid_x + 1}
-              </p>
+              <p className="text-lg font-semibold">Quadra {lot.quadra}</p>
             </div>
           </div>
 
@@ -108,32 +123,39 @@ export function LotDetailSheet({
           {isAdmin && (
             <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3">
               <p className="text-sm font-semibold">Painel do administrador</p>
-              <div className="grid grid-cols-3 gap-2">
-                <Button
-                  variant={lot.status === "available" ? "default" : "outline"}
-                  size="sm"
-                  disabled={saving}
-                  onClick={() => setStatus("available")}
-                >
-                  Disponível
-                </Button>
-                <Button
-                  variant={lot.status === "reserved" ? "default" : "outline"}
-                  size="sm"
-                  disabled={saving}
-                  onClick={() => setStatus("reserved")}
-                >
-                  Reservado
-                </Button>
-                <Button
-                  variant={lot.status === "sold" ? "default" : "outline"}
-                  size="sm"
-                  disabled={saving}
-                  onClick={() => setStatus("sold")}
-                >
-                  Vendido
-                </Button>
-              </div>
+              {lot.id ? (
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    variant={lot.status === "available" ? "default" : "outline"}
+                    size="sm"
+                    disabled={saving}
+                    onClick={() => setStatus("available")}
+                  >
+                    Disponível
+                  </Button>
+                  <Button
+                    variant={lot.status === "reserved" ? "default" : "outline"}
+                    size="sm"
+                    disabled={saving}
+                    onClick={() => setStatus("reserved")}
+                  >
+                    Reservado
+                  </Button>
+                  <Button
+                    variant={lot.status === "sold" ? "default" : "outline"}
+                    size="sm"
+                    disabled={saving}
+                    onClick={() => setStatus("sold")}
+                  >
+                    Vendido
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Este lote ainda não está cadastrado no banco de dados. Aplique a migração do
+                  quadro de áreas para habilitar a gestão de status.
+                </p>
+              )}
             </div>
           )}
         </div>
