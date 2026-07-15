@@ -1,0 +1,2 @@
+ALTER PUBLICATION supabase_realtime ADD TABLE public.lots;
+ALTER TABLE public.lots REPLICA IDENTITY FULL;
