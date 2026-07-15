@@ -1,24 +1,167 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ClientOnly } from "@tanstack/react-router";
+import { useEffect, useState, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Loteamento3D, type Lot } from "@/components/Loteamento3D";
+import { LotDetailSheet } from "@/components/LotDetailSheet";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "Loteamento 3D — Veja e reserve seu lote" },
+      {
+        name: "description",
+        content:
+          "Explore a planta do loteamento em 3D, visualize os lotes disponíveis, reservados e vendidos e fale com o corretor.",
+      },
+      { property: "og:title", content: "Loteamento 3D — Veja e reserve seu lote" },
+      {
+        property: "og:description",
+        content: "Planta interativa em 3D com status em tempo real dos lotes.",
+      },
+      { property: "og:type", content: "website" },
+    ],
+  }),
+  component: Home,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+function Home() {
+  const { user, isAdmin, loading: authLoading } = useAuth();
+  const [lots, setLots] = useState<Lot[]>([]);
+  const [selected, setSelected] = useState<Lot | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const load = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("lots")
+      .select("*")
+      .order("number");
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setLots(data ?? []);
+    // refresh selected details if open
+    setSelected((cur) => (cur ? data?.find((l) => l.id === cur.id) ?? cur : cur));
+  }, []);
+
+  useEffect(() => {
+    load();
+    const channel = supabase
+      .channel("lots-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "lots" },
+        () => load(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [load]);
+
+  const handleSelect = (lot: Lot) => {
+    setSelected(lot);
+    setSheetOpen(true);
+  };
+
+  const stats = {
+    total: lots.length,
+    available: lots.filter((l) => l.status === "available").length,
+    reserved: lots.filter((l) => l.status === "reserved").length,
+    sold: lots.filter((l) => l.status === "sold").length,
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    toast.success("Você saiu");
+  };
+
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
+    <div className="relative h-screen w-screen overflow-hidden bg-background text-foreground">
+      {/* Top bar */}
+      <header className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 md:p-6 pointer-events-none">
+        <div className="pointer-events-auto rounded-xl bg-background/80 backdrop-blur-md border border-border px-4 py-3 shadow-lg">
+          <h1 className="text-lg md:text-xl font-bold">Residencial Vista 3D</h1>
+          <p className="text-xs text-muted-foreground">
+            Clique em um lote para ver detalhes
+          </p>
+        </div>
+
+        <div className="pointer-events-auto flex items-center gap-2">
+          {!authLoading && user ? (
+            <>
+              {isAdmin && (
+                <Badge variant="default" className="hidden md:inline-flex">
+                  Admin
+                </Badge>
+              )}
+              <Button variant="outline" size="sm" onClick={signOut}>
+                Sair
+              </Button>
+            </>
+          ) : (
+            <Link to="/auth">
+              <Button size="sm">Entrar</Button>
+            </Link>
+          )}
+        </div>
+      </header>
+
+      {/* Legend */}
+      <div className="absolute bottom-4 left-4 z-10 rounded-xl bg-background/80 backdrop-blur-md border border-border p-4 shadow-lg">
+        <p className="text-xs font-semibold uppercase tracking-wide mb-2 text-muted-foreground">
+          Legenda
+        </p>
+        <div className="space-y-2 text-sm">
+          <LegendRow color="#22c55e" label="Disponível" count={stats.available} />
+          <LegendRow color="#f59e0b" label="Reservado" count={stats.reserved} />
+          <LegendRow color="#ef4444" label="Vendido" count={stats.sold} />
+          <div className="pt-2 mt-2 border-t border-border text-xs text-muted-foreground">
+            {stats.total} lotes no total
+          </div>
+        </div>
+      </div>
+
+      {/* 3D scene (client-only) */}
+      <ClientOnly
+        fallback={
+          <div className="flex h-full items-center justify-center text-muted-foreground">
+            Carregando visualização 3D...
+          </div>
+        }
+      >
+        <Loteamento3D
+          lots={lots}
+          selectedId={selected?.id ?? null}
+          onSelect={handleSelect}
+        />
+      </ClientOnly>
+
+      <LotDetailSheet
+        lot={selected}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        isAdmin={isAdmin}
+        onChanged={load}
       />
+    </div>
+  );
+}
+
+function LegendRow({ color, label, count }: { color: string; label: string; count: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span
+        className="inline-block w-3 h-3 rounded-sm"
+        style={{ backgroundColor: color }}
+      />
+      <span className="flex-1">{label}</span>
+      <span className="text-muted-foreground tabular-nums">{count}</span>
     </div>
   );
 }
