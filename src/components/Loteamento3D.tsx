@@ -1,10 +1,28 @@
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Text, Sky } from "@react-three/drei";
+import { OrbitControls, Text, Sky, Billboard } from "@react-three/drei";
 import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { Database } from "@/integrations/supabase/types";
+import {
+  GREEN_AREAS,
+  INSTITUTIONAL,
+  QUADRA_LABELS,
+  SITE,
+  STREETS,
+  type LayoutLot,
+  type Rect,
+} from "@/lib/loteamento";
 
 export type Lot = Database["public"]["Tables"]["lots"]["Row"];
+
+/** Lote da planta (PDF) combinado com os dados do banco, quando existirem. */
+export interface LotView extends LayoutLot {
+  id: string | null;
+  status: Lot["status"];
+  price: number | null;
+  whatsapp: string | null;
+  notes: string | null;
+}
 
 const STATUS_COLORS: Record<Lot["status"], string> = {
   available: "#22c55e",
@@ -12,142 +30,367 @@ const STATUS_COLORS: Record<Lot["status"], string> = {
   sold: "#ef4444",
 };
 
+/** fonte local — evita depender do CDN padrão do troika-three-text */
+const FONT_URL = "/fonts/inter-600.woff";
+
+const COLORS = {
+  grass: "#6f9e4f",
+  quadra: "#cdbd97",
+  street: "#4a5058",
+  streetLine: "#e8e6df",
+  green: "#4d8a3d",
+  institutional: "#9db4c0",
+  trunk: "#6b4a2f",
+  canopy: "#3d7032",
+};
+
 function LotMesh({
   lot,
   onSelect,
   selected,
 }: {
-  lot: Lot;
-  onSelect: (l: Lot) => void;
+  lot: LotView;
+  onSelect: (l: LotView) => void;
   selected: boolean;
 }) {
   const [hover, setHover] = useState(false);
-  const meshRef = useRef<THREE.Mesh>(null);
+  const groupRef = useRef<THREE.Group>(null);
   const color = STATUS_COLORS[lot.status];
-
-  const spacing = 1.2;
-  const x = lot.grid_x * lot.width * spacing;
-  const z = lot.grid_z * lot.depth * spacing;
-  const height = 0.3;
+  const height = 0.6;
+  const fontSize = Math.min(Math.min(lot.width, lot.depth) * 0.42, lot.width * 0.28);
 
   useFrame(() => {
-    if (!meshRef.current) return;
-    const targetY = hover || selected ? height / 2 + 0.4 : height / 2;
-    meshRef.current.position.y += (targetY - meshRef.current.position.y) * 0.15;
+    if (!groupRef.current) return;
+    const targetY = hover || selected ? 1.6 : 0;
+    groupRef.current.position.y += (targetY - groupRef.current.position.y) * 0.15;
   });
 
   return (
-    <group position={[x, 0, z]}>
-      <mesh
-        ref={meshRef}
-        position={[0, height / 2, 0]}
-        onClick={(e) => {
-          e.stopPropagation();
-          onSelect(lot);
-        }}
-        onPointerOver={(e) => {
-          e.stopPropagation();
-          setHover(true);
-          document.body.style.cursor = "pointer";
-        }}
-        onPointerOut={() => {
-          setHover(false);
-          document.body.style.cursor = "auto";
-        }}
-        castShadow
-        receiveShadow
-      >
-        <boxGeometry args={[lot.width, height, lot.depth]} />
-        <meshStandardMaterial
-          color={color}
-          emissive={selected ? color : "#000"}
-          emissiveIntensity={selected ? 0.4 : 0}
-          roughness={0.6}
-          metalness={0.1}
-        />
+    <group position={[lot.x, 0, lot.z]}>
+      <group ref={groupRef}>
+        <mesh
+          position={[0, height / 2, 0]}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(lot);
+          }}
+          onPointerOver={(e) => {
+            e.stopPropagation();
+            setHover(true);
+            document.body.style.cursor = "pointer";
+          }}
+          onPointerOut={() => {
+            setHover(false);
+            document.body.style.cursor = "auto";
+          }}
+          castShadow
+          receiveShadow
+        >
+          <boxGeometry args={[lot.width - 0.6, height, lot.depth - 0.6]} />
+          <meshStandardMaterial
+            color={color}
+            emissive={selected || hover ? color : "#000"}
+            emissiveIntensity={selected ? 0.5 : hover ? 0.25 : 0}
+            roughness={0.65}
+            metalness={0.05}
+          />
+        </mesh>
+        <Text
+          font={FONT_URL}
+          position={[0, height + 0.06, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          fontSize={fontSize}
+          color="#14261a"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {String(lot.number)}
+        </Text>
+      </group>
+    </group>
+  );
+}
+
+function FlatRect({ rect, color, y = 0.02 }: { rect: Rect; color: string; y?: number }) {
+  return (
+    <mesh
+      rotation={[-Math.PI / 2, 0, 0]}
+      position={[rect.x + rect.width / 2, y, rect.z + rect.depth / 2]}
+      receiveShadow
+    >
+      <planeGeometry args={[rect.width, rect.depth]} />
+      <meshStandardMaterial color={color} roughness={1} />
+    </mesh>
+  );
+}
+
+function Street({ rect }: { rect: Rect }) {
+  const horizontal = rect.width >= rect.depth;
+  const length = horizontal ? rect.width : rect.depth;
+  const dashes = useMemo(() => {
+    const step = 9;
+    const count = Math.floor((length - 4) / step);
+    return Array.from({ length: count }, (_, i) => 4 + i * step + step / 2);
+  }, [length]);
+
+  return (
+    <group>
+      <FlatRect rect={rect} color={COLORS.street} y={0.04} />
+      {dashes.map((d, i) => (
+        <mesh
+          key={i}
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={
+            horizontal
+              ? [rect.x + d, 0.06, rect.z + rect.depth / 2]
+              : [rect.x + rect.width / 2, 0.06, rect.z + d]
+          }
+        >
+          <planeGeometry args={horizontal ? [3.2, 0.35] : [0.35, 3.2]} />
+          <meshStandardMaterial color={COLORS.streetLine} roughness={1} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/** gerador determinístico p/ espalhar árvores sempre no mesmo lugar */
+function mulberry32(seed: number) {
+  return () => {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function Tree({ x, z, scale }: { x: number; z: number; scale: number }) {
+  return (
+    <group position={[x, 0, z]} scale={scale}>
+      <mesh position={[0, 1.1, 0]} castShadow>
+        <cylinderGeometry args={[0.25, 0.35, 2.2, 6]} />
+        <meshStandardMaterial color={COLORS.trunk} roughness={1} />
+      </mesh>
+      <mesh position={[0, 3.1, 0]} castShadow>
+        <icosahedronGeometry args={[1.8, 0]} />
+        <meshStandardMaterial color={COLORS.canopy} roughness={0.9} flatShading />
+      </mesh>
+    </group>
+  );
+}
+
+function GreenArea({ rect, seed }: { rect: Rect; seed: number }) {
+  const trees = useMemo(() => {
+    const rand = mulberry32(seed * 7919 + 13);
+    const count = Math.max(3, Math.round((rect.width * rect.depth) / 220));
+    return Array.from({ length: count }, () => ({
+      x: rect.x + 2.5 + rand() * (rect.width - 5),
+      z: rect.z + 2.5 + rand() * (rect.depth - 5),
+      scale: 0.8 + rand() * 0.9,
+    }));
+  }, [rect, seed]);
+
+  return (
+    <group>
+      <FlatRect rect={rect} color={COLORS.green} y={0.03} />
+      {trees.map((t, i) => (
+        <Tree key={i} {...t} />
+      ))}
+      {rect.label ? (
+        <Text
+          font={FONT_URL}
+          position={[rect.x + rect.width / 2, 0.12, rect.z + rect.depth - 3]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          fontSize={2.4}
+          color="#dcefd2"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {rect.label}
+        </Text>
+      ) : null}
+    </group>
+  );
+}
+
+function Institutional() {
+  const r = INSTITUTIONAL;
+  return (
+    <group>
+      <FlatRect rect={r} color={COLORS.institutional} y={0.03} />
+      <mesh position={[r.x + r.width / 2, 2.2, r.z + r.depth / 2]} castShadow receiveShadow>
+        <boxGeometry args={[r.width * 0.45, 4.4, r.depth * 0.4]} />
+        <meshStandardMaterial color="#e7e2d5" roughness={0.8} />
+      </mesh>
+      <mesh position={[r.x + r.width / 2, 5.3, r.z + r.depth / 2]} castShadow>
+        <boxGeometry args={[r.width * 0.5, 1.4, r.depth * 0.45]} />
+        <meshStandardMaterial color="#b0492f" roughness={0.9} />
       </mesh>
       <Text
-        position={[0, height + 0.05, 0]}
+        font={FONT_URL}
+        position={[r.x + r.width / 2, 0.12, r.z + r.depth - 4]}
         rotation={[-Math.PI / 2, 0, 0]}
-        fontSize={0.9}
-        color="#0b1220"
+        fontSize={3}
+        color="#243b4a"
         anchorX="center"
         anchorY="middle"
       >
-        {lot.number}
+        {r.label}
       </Text>
     </group>
   );
 }
 
-function Ground({ width, depth }: { width: number; depth: number }) {
+function Entrance() {
+  const cx = 144; // centro da avenida principal
+  const z = SITE.maxZ + 2;
   return (
-    <>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
-        <planeGeometry args={[width * 1.6, depth * 1.6]} />
-        <meshStandardMaterial color="#2a3547" />
+    <group>
+      {[-8, 8].map((dx) => (
+        <mesh key={dx} position={[cx + dx, 2.4, z]} castShadow>
+          <boxGeometry args={[1.6, 4.8, 1.6]} />
+          <meshStandardMaterial color="#e7e2d5" roughness={0.8} />
+        </mesh>
+      ))}
+      <mesh position={[cx, 5.1, z]} castShadow>
+        <boxGeometry args={[19, 1.2, 1.8]} />
+        <meshStandardMaterial color="#e7e2d5" roughness={0.8} />
       </mesh>
-      {/* Streets */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-        <planeGeometry args={[width * 1.4, 2]} />
-        <meshStandardMaterial color="#1a2130" />
-      </mesh>
-    </>
+      <Text
+        font={FONT_URL}
+        position={[cx, 5.2, z + 1.05]}
+        fontSize={1.5}
+        color="#243b4a"
+        anchorX="center"
+        anchorY="middle"
+      >
+        ENTRADA
+      </Text>
+    </group>
+  );
+}
+
+function QuadraLabel({ quadra, x, z }: { quadra: number; x: number; z: number }) {
+  return (
+    <Billboard position={[x, 9, z]}>
+      <Text
+        font={FONT_URL}
+        fontSize={4}
+        color="#ffffff"
+        outlineWidth={0.28}
+        outlineColor="#1f2937"
+        anchorX="center"
+        anchorY="middle"
+      >
+        {`Q${quadra}`}
+      </Text>
+    </Billboard>
   );
 }
 
 export function Loteamento3D({
   lots,
-  selectedId,
+  selectedNumber,
   onSelect,
 }: {
-  lots: Lot[];
-  selectedId: string | null;
-  onSelect: (l: Lot) => void;
+  lots: LotView[];
+  selectedNumber: number | null;
+  onSelect: (l: LotView) => void;
 }) {
-  const bounds = useMemo(() => {
-    if (lots.length === 0) return { cx: 0, cz: 0, w: 40, d: 40 };
-    const spacing = 1.2;
-    const xs = lots.map((l) => l.grid_x * l.width * spacing);
-    const zs = lots.map((l) => l.grid_z * l.depth * spacing);
-    const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
-    const cz = (Math.min(...zs) + Math.max(...zs)) / 2;
-    const w = Math.max(...xs) - Math.min(...xs) + 30;
-    const d = Math.max(...zs) - Math.min(...zs) + 30;
-    return { cx, cz, w, d };
+  const center = useMemo(
+    () => new THREE.Vector3((SITE.minX + SITE.maxX) / 2, 0, (SITE.minZ + SITE.maxZ) / 2),
+    [],
+  );
+
+  const quadraPlates = useMemo(() => {
+    // uma placa de terra sob cada quadra, calculada a partir dos lotes
+    const byQuadra = new Map<number, LotView[]>();
+    for (const l of lots) {
+      const arr = byQuadra.get(l.quadra) ?? [];
+      arr.push(l);
+      byQuadra.set(l.quadra, arr);
+    }
+    return [...byQuadra.values()].map((ls) => {
+      const minX = Math.min(...ls.map((l) => l.x - l.width / 2));
+      const maxX = Math.max(...ls.map((l) => l.x + l.width / 2));
+      const minZ = Math.min(...ls.map((l) => l.z - l.depth / 2));
+      const maxZ = Math.max(...ls.map((l) => l.z + l.depth / 2));
+      return {
+        x: minX - 1,
+        z: minZ - 1,
+        width: maxX - minX + 2,
+        depth: maxZ - minZ + 2,
+      } as Rect;
+    });
   }, [lots]);
 
   return (
     <Canvas
       shadows
-      camera={{ position: [bounds.cx + 30, 35, bounds.cz + 40], fov: 45 }}
-      style={{ background: "linear-gradient(to bottom, #0f172a, #1e293b)" }}
+      camera={{
+        position: [center.x, 230, SITE.maxZ + 250],
+        fov: 45,
+        near: 1,
+        far: 3000,
+      }}
+      style={{ background: "linear-gradient(to bottom, #8ec8e8, #d8ecf5)" }}
     >
-      <Sky sunPosition={[100, 40, 100]} distance={450000} />
-      <ambientLight intensity={0.5} />
+      <Sky sunPosition={[200, 160, 100]} distance={450000} />
+      <ambientLight intensity={0.55} />
       <directionalLight
-        position={[30, 50, 20]}
-        intensity={1.1}
+        position={[220, 260, 60]}
+        intensity={1.2}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
+        shadow-camera-left={-260}
+        shadow-camera-right={260}
+        shadow-camera-top={260}
+        shadow-camera-bottom={-260}
+        shadow-camera-far={800}
       />
-      <group position={[-bounds.cx, 0, -bounds.cz]}>
-        <Ground width={bounds.w} depth={bounds.d} />
-        {lots.map((lot) => (
-          <LotMesh
-            key={lot.id}
-            lot={lot}
-            selected={selectedId === lot.id}
-            onSelect={onSelect}
-          />
-        ))}
-      </group>
+
+      {/* terreno */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[center.x, 0, center.z]} receiveShadow>
+        <planeGeometry args={[1200, 1200]} />
+        <meshStandardMaterial color={COLORS.grass} roughness={1} />
+      </mesh>
+
+      {quadraPlates.map((r, i) => (
+        <FlatRect key={i} rect={r} color={COLORS.quadra} y={0.05} />
+      ))}
+
+      {STREETS.map((s, i) => (
+        <Street key={i} rect={s} />
+      ))}
+
+      {GREEN_AREAS.map((g, i) => (
+        <GreenArea key={i} rect={g} seed={i + 1} />
+      ))}
+
+      <Institutional />
+      <Entrance />
+
+      {QUADRA_LABELS.map((q) => (
+        <QuadraLabel key={q.quadra} {...q} />
+      ))}
+
+      {lots.map((lot) => (
+        <LotMesh
+          key={lot.number}
+          lot={lot}
+          selected={selectedNumber === lot.number}
+          onSelect={onSelect}
+        />
+      ))}
+
       <OrbitControls
         enableDamping
-        maxPolarAngle={Math.PI / 2.1}
-        minDistance={10}
-        maxDistance={120}
+        target={center}
+        maxPolarAngle={Math.PI / 2.15}
+        minDistance={30}
+        maxDistance={700}
       />
     </Canvas>
   );
