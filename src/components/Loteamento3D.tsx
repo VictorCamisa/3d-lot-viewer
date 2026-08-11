@@ -1,5 +1,5 @@
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Text, Sky, Billboard } from "@react-three/drei";
+import { OrbitControls, Text, Billboard } from "@react-three/drei";
 import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { Database } from "@/integrations/supabase/types";
@@ -336,7 +336,7 @@ export function Loteamento3D({
       }}
       style={{ background: "linear-gradient(to bottom, #8ec8e8, #d8ecf5)" }}
     >
-      <Sky sunPosition={[200, 160, 100]} distance={450000} />
+      <fog attach="fog" args={["#cfe4f2", 400, 1400]} />
       <ambientLight intensity={0.55} />
       <directionalLight position={[220, 260, 60]} intensity={1.2} />
       <directionalLight position={[-160, 180, -120]} intensity={0.35} />
