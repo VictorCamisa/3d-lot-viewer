@@ -1,5 +1,5 @@
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Text, Sky, Billboard } from "@react-three/drei";
+import { OrbitControls, Billboard, Html } from "@react-three/drei";
 import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { Database } from "@/integrations/supabase/types";
@@ -12,6 +12,51 @@ import {
   type LayoutLot,
   type Rect,
 } from "@/lib/loteamento";
+
+/**
+ * Rótulos em HTML (drei <Html/>) em vez de troika <Text/>: o troika cria um
+ * segundo contexto WebGL para gerar as fontes SDF, o que fazia o navegador
+ * descartar o contexto principal ("Context Lost") e a cena ficar em branco.
+ */
+function Text({
+  position,
+  fontSize = 3,
+  color = "#ffffff",
+  outlineColor,
+  children,
+}: {
+  position?: [number, number, number];
+  fontSize?: number;
+  color?: string;
+  outlineColor?: string;
+  children: React.ReactNode;
+  // props aceitas por compatibilidade e ignoradas
+  font?: string;
+  rotation?: [number, number, number];
+  anchorX?: string;
+  anchorY?: string;
+  outlineWidth?: number;
+}) {
+  return (
+    <Html position={position} center distanceFactor={160} style={{ pointerEvents: "none" }}>
+      <span
+        style={{
+          color,
+          fontSize: `${fontSize * 5}px`,
+          fontWeight: 700,
+          whiteSpace: "nowrap",
+          letterSpacing: "0.02em",
+          textShadow: outlineColor
+            ? `0 0 6px ${outlineColor}, 0 1px 2px ${outlineColor}`
+            : "0 1px 2px rgba(0,0,0,0.35)",
+        }}
+      >
+        {children}
+      </span>
+    </Html>
+  );
+}
+
 
 export type Lot = Database["public"]["Tables"]["lots"]["Row"];
 
@@ -83,8 +128,6 @@ function LotMesh({
             setHover(false);
             document.body.style.cursor = "auto";
           }}
-          castShadow
-          receiveShadow
         >
           <boxGeometry args={[lot.width - 0.6, height, lot.depth - 0.6]} />
           <meshStandardMaterial
@@ -95,17 +138,19 @@ function LotMesh({
             metalness={0.05}
           />
         </mesh>
-        <Text
-          font={FONT_URL}
-          position={[0, height + 0.06, 0]}
-          rotation={[-Math.PI / 2, 0, 0]}
-          fontSize={fontSize}
-          color="#14261a"
-          anchorX="center"
-          anchorY="middle"
-        >
-          {String(lot.number)}
-        </Text>
+        {hover || selected ? (
+          <Text
+            font={FONT_URL}
+            position={[0, height + 0.06, 0]}
+            rotation={[-Math.PI / 2, 0, 0]}
+            fontSize={fontSize}
+            color="#14261a"
+            anchorX="center"
+            anchorY="middle"
+          >
+            {String(lot.number)}
+          </Text>
+        ) : null}
       </group>
     </group>
   );
@@ -116,7 +161,6 @@ function FlatRect({ rect, color, y = 0.02 }: { rect: Rect; color: string; y?: nu
     <mesh
       rotation={[-Math.PI / 2, 0, 0]}
       position={[rect.x + rect.width / 2, y, rect.z + rect.depth / 2]}
-      receiveShadow
     >
       <planeGeometry args={[rect.width, rect.depth]} />
       <meshStandardMaterial color={color} roughness={1} />
@@ -168,11 +212,11 @@ function mulberry32(seed: number) {
 function Tree({ x, z, scale }: { x: number; z: number; scale: number }) {
   return (
     <group position={[x, 0, z]} scale={scale}>
-      <mesh position={[0, 1.1, 0]} castShadow>
-        <cylinderGeometry args={[0.25, 0.35, 2.2, 6]} />
+      <mesh position={[0, 1.1, 0]}>
+        <cylinderGeometry args={[0.25, 0.35, 2.2, 5]} />
         <meshStandardMaterial color={COLORS.trunk} roughness={1} />
       </mesh>
-      <mesh position={[0, 3.1, 0]} castShadow>
+      <mesh position={[0, 3.1, 0]}>
         <icosahedronGeometry args={[1.8, 0]} />
         <meshStandardMaterial color={COLORS.canopy} roughness={0.9} flatShading />
       </mesh>
@@ -183,7 +227,7 @@ function Tree({ x, z, scale }: { x: number; z: number; scale: number }) {
 function GreenArea({ rect, seed }: { rect: Rect; seed: number }) {
   const trees = useMemo(() => {
     const rand = mulberry32(seed * 7919 + 13);
-    const count = Math.max(3, Math.round((rect.width * rect.depth) / 220));
+    const count = Math.max(2, Math.round((rect.width * rect.depth) / 900));
     return Array.from({ length: count }, () => ({
       x: rect.x + 2.5 + rand() * (rect.width - 5),
       z: rect.z + 2.5 + rand() * (rect.depth - 5),
@@ -219,11 +263,11 @@ function Institutional() {
   return (
     <group>
       <FlatRect rect={r} color={COLORS.institutional} y={0.03} />
-      <mesh position={[r.x + r.width / 2, 2.2, r.z + r.depth / 2]} castShadow receiveShadow>
+      <mesh position={[r.x + r.width / 2, 2.2, r.z + r.depth / 2]}>
         <boxGeometry args={[r.width * 0.45, 4.4, r.depth * 0.4]} />
         <meshStandardMaterial color="#e7e2d5" roughness={0.8} />
       </mesh>
-      <mesh position={[r.x + r.width / 2, 5.3, r.z + r.depth / 2]} castShadow>
+      <mesh position={[r.x + r.width / 2, 5.3, r.z + r.depth / 2]}>
         <boxGeometry args={[r.width * 0.5, 1.4, r.depth * 0.45]} />
         <meshStandardMaterial color="#b0492f" roughness={0.9} />
       </mesh>
@@ -248,12 +292,12 @@ function Entrance() {
   return (
     <group>
       {[-8, 8].map((dx) => (
-        <mesh key={dx} position={[cx + dx, 2.4, z]} castShadow>
+        <mesh key={dx} position={[cx + dx, 2.4, z]}>
           <boxGeometry args={[1.6, 4.8, 1.6]} />
           <meshStandardMaterial color="#e7e2d5" roughness={0.8} />
         </mesh>
       ))}
-      <mesh position={[cx, 5.1, z]} castShadow>
+      <mesh position={[cx, 5.1, z]}>
         <boxGeometry args={[19, 1.2, 1.8]} />
         <meshStandardMaterial color="#e7e2d5" roughness={0.8} />
       </mesh>
@@ -327,7 +371,8 @@ export function Loteamento3D({
 
   return (
     <Canvas
-      shadows
+      dpr={[1, 1.5]}
+      gl={{ antialias: false, powerPreference: "high-performance" }}
       camera={{
         position: [center.x, 230, SITE.maxZ + 250],
         fov: 45,
@@ -336,23 +381,13 @@ export function Loteamento3D({
       }}
       style={{ background: "linear-gradient(to bottom, #8ec8e8, #d8ecf5)" }}
     >
-      <Sky sunPosition={[200, 160, 100]} distance={450000} />
+      <fog attach="fog" args={["#cfe4f2", 400, 1400]} />
       <ambientLight intensity={0.55} />
-      <directionalLight
-        position={[220, 260, 60]}
-        intensity={1.2}
-        castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-camera-left={-260}
-        shadow-camera-right={260}
-        shadow-camera-top={260}
-        shadow-camera-bottom={-260}
-        shadow-camera-far={800}
-      />
+      <directionalLight position={[220, 260, 60]} intensity={1.2} />
+      <directionalLight position={[-160, 180, -120]} intensity={0.35} />
 
       {/* terreno */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[center.x, 0, center.z]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[center.x, 0, center.z]}>
         <planeGeometry args={[1200, 1200]} />
         <meshStandardMaterial color={COLORS.grass} roughness={1} />
       </mesh>
