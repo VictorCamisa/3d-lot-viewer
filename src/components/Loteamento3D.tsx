@@ -42,7 +42,7 @@ function Text({
       <span
         style={{
           color,
-          fontSize: `${fontSize * 9}px`,
+          fontSize: `${fontSize * 5}px`,
           fontWeight: 700,
           whiteSpace: "nowrap",
           letterSpacing: "0.02em",
