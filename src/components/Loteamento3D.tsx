@@ -1,5 +1,5 @@
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Text, Billboard } from "@react-three/drei";
+import { OrbitControls, Billboard } from "@react-three/drei";
 import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { Database } from "@/integrations/supabase/types";
@@ -12,6 +12,8 @@ import {
   type LayoutLot,
   type Rect,
 } from "@/lib/loteamento";
+
+function Text(_: any) { return null; }
 
 export type Lot = Database["public"]["Tables"]["lots"]["Row"];
 
