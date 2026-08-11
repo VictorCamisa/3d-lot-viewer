@@ -1,5 +1,5 @@
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Billboard } from "@react-three/drei";
+import { OrbitControls, Billboard, Html } from "@react-three/drei";
 import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { Database } from "@/integrations/supabase/types";
@@ -13,7 +13,50 @@ import {
   type Rect,
 } from "@/lib/loteamento";
 
-function Text(_: any) { return null; }
+/**
+ * Rótulos em HTML (drei <Html/>) em vez de troika <Text/>: o troika cria um
+ * segundo contexto WebGL para gerar as fontes SDF, o que fazia o navegador
+ * descartar o contexto principal ("Context Lost") e a cena ficar em branco.
+ */
+function Text({
+  position,
+  fontSize = 3,
+  color = "#ffffff",
+  outlineColor,
+  children,
+}: {
+  position?: [number, number, number];
+  fontSize?: number;
+  color?: string;
+  outlineColor?: string;
+  children: React.ReactNode;
+  // props aceitas por compatibilidade e ignoradas
+  font?: string;
+  rotation?: [number, number, number];
+  anchorX?: string;
+  anchorY?: string;
+  outlineWidth?: number;
+}) {
+  return (
+    <Html position={position} center distanceFactor={160} style={{ pointerEvents: "none" }}>
+      <span
+        style={{
+          color,
+          fontSize: `${fontSize * 9}px`,
+          fontWeight: 700,
+          whiteSpace: "nowrap",
+          letterSpacing: "0.02em",
+          textShadow: outlineColor
+            ? `0 0 6px ${outlineColor}, 0 1px 2px ${outlineColor}`
+            : "0 1px 2px rgba(0,0,0,0.35)",
+        }}
+      >
+        {children}
+      </span>
+    </Html>
+  );
+}
+
 
 export type Lot = Database["public"]["Tables"]["lots"]["Row"];
 
