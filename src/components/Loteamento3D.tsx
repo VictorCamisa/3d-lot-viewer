@@ -6,7 +6,8 @@ import type { Database } from "@/integrations/supabase/types";
 import { House, HouseLOD } from "@/components/House3D";
 import { HOUSE_PLOTS, type HousePlot } from "@/lib/houses";
 import { G, PROP_M } from "@/lib/three-assets";
-import { Bench, Crosswalk, StreetLamp, StreetSign, TrafficSign, TrashBin } from "@/components/Props3D";
+import { Bench, Crosswalk, StreetSign, TrafficSign, TrashBin } from "@/components/Props3D";
+import { Praca, SalesStand, Scenery } from "@/components/Scenery3D";
 import {
   GREEN_AREAS,
   INSTITUTIONAL,
@@ -75,9 +76,9 @@ const STATUS_COLORS: Record<Lot["status"], string> = {
 const FONT_URL = "/fonts/inter-600.woff";
 
 const COLORS = {
-  grass: "#6f9e4f",
-  quadra: "#cdbd97",
-  street: "#41464d",
+  grass: "#7ea852",
+  quadra: "#c6ab6e",
+  street: "#3b3f45",
   streetLine: "#e8e6df",
   green: "#4d8a3d",
   institutional: "#9db4c0",
@@ -284,9 +285,6 @@ function StreetFurniture() {
 
   return (
     <group>
-      {items.lamps.map((l, i) => (
-        <StreetLamp key={`lp${i}`} position={[l.x, 0, l.z]} rotation={l.r} />
-      ))}
       {items.signs.map((p, i) => (
         <StreetSign key={`sg${i}`} position={p} />
       ))}
@@ -606,16 +604,16 @@ export function Loteamento3D({
         near: 0.5,
         far: 3000,
       }}
-      style={{ background: "linear-gradient(to bottom, #8ec8e8, #d8ecf5)" }}
+      style={{ background: "linear-gradient(to bottom, #2f7fd0 0%, #6fb3e6 45%, #cfe6f3 100%)" }}
     >
-      <fog attach="fog" args={["#cfe4f2", 500, 1600]} />
+      <fog attach="fog" args={["#bcd8ea", 700, 2600]} />
       <hemisphereLight args={["#cfe6f5", "#6d8a5a", 0.85]} />
       <ambientLight intensity={0.25} />
       <directionalLight position={[220, 260, 60]} intensity={1.35} color="#fff3df" />
       <directionalLight position={[-160, 180, -120]} intensity={0.4} color="#cfe0ff" />
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[center.x, 0, center.z]}>
-        <planeGeometry args={[1600, 1600]} />
+        <planeGeometry args={[4000, 4000]} />
         <meshStandardMaterial color={COLORS.grass} roughness={1} />
       </mesh>
 
@@ -629,9 +627,13 @@ export function Loteamento3D({
 
       <StreetFurniture />
 
+      <Scenery streets={STREETS} />
+
       {GREEN_AREAS.map((g, i) => (
         <GreenArea key={i} rect={g} seed={i + 1} />
       ))}
+      <Praca {...GREEN_AREAS[0]} />
+      <SalesStand x={60} z={SITE.maxZ + 8} />
 
       <Institutional />
       <Entrance />
