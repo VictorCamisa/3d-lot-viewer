@@ -36,6 +36,8 @@ function Home() {
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [showHouses, setShowHouses] = useState(true);
+  const [flyMode, setFlyMode] = useState(false);
+  const [locked, setLocked] = useState(false);
 
 
 
@@ -113,6 +115,13 @@ function Home() {
 
         <div className="pointer-events-auto flex items-center gap-2">
           <Button
+            variant={flyMode ? "default" : "outline"}
+            size="sm"
+            onClick={() => setFlyMode((v) => !v)}
+          >
+            {flyMode ? "Modo voo: ON" : "Modo voo"}
+          </Button>
+          <Button
             variant={showHouses ? "default" : "outline"}
             size="sm"
             onClick={() => setShowHouses((v) => !v)}
@@ -175,8 +184,28 @@ function Home() {
           selectedNumber={selectedNumber}
           onSelect={handleSelect}
           showHouses={showHouses}
+          flyMode={flyMode}
+          onLockChange={setLocked}
         />
       </ClientOnly>
+
+      {flyMode && (
+        <>
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+            <div className="h-5 w-5 rounded-full border-2 border-white/80 shadow" />
+          </div>
+          <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-xl bg-background/80 backdrop-blur-md border border-border px-4 py-2 text-xs shadow-lg">
+            {locked ? (
+              <span>
+                <b>W A S D</b> mover · <b>Mouse</b> olhar · <b>Espaço/Q</b> subir e descer ·{" "}
+                <b>Shift</b> turbo · <b>Esc</b> liberar o cursor
+              </span>
+            ) : (
+              <span>Clique na cena para começar a voar</span>
+            )}
+          </div>
+        </>
+      )}
 
       <LotDetailSheet
         lot={selected}
