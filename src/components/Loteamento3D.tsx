@@ -313,7 +313,7 @@ function mulberry32(seed: number) {
 function Tree({ x, z, scale }: { x: number; z: number; scale: number }) {
   return (
     <group position={[x, 0, z]} scale={scale}>
-      <mesh geometry={G.cyl8} material-color={COLORS.trunk} position={[0, 1.1, 0]} scale={[0.55, 2.2, 0.55]}>
+      <mesh geometry={G.cyl8} position={[0, 1.1, 0]} scale={[0.55, 2.2, 0.55]}>
         <meshStandardMaterial color={COLORS.trunk} roughness={1} />
       </mesh>
       <mesh geometry={G.blob} position={[0, 3.1, 0]} scale={3.4}>
