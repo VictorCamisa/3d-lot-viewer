@@ -41,9 +41,9 @@ function Mountains() {
     const cx = (SITE.minX + SITE.maxX) / 2;
     const cz = (SITE.minZ + SITE.maxZ) / 2;
     const rings = [
-      { r: 1500, h: [220, 380], m: S.ridgeFar, n: 26 },
-      { r: 1150, h: [150, 280], m: S.ridgeMid, n: 22 },
-      { r: 880, h: [90, 180], m: S.ridgeNear, n: 18 },
+      { r: 2300, h: [300, 520], m: S.ridgeFar, n: 30 },
+      { r: 1750, h: [200, 380], m: S.ridgeMid, n: 26 },
+      { r: 1350, h: [130, 240], m: S.ridgeNear, n: 22 },
     ];
     for (const ring of rings) {
       for (let i = 0; i < ring.n; i++) {
@@ -426,11 +426,10 @@ function ClayPatches() {
       {patches.map((p, i) => (
         <mesh
           key={i}
-          geometry={G.plane}
+          geometry={G.cyl8}
           material={S.clay}
-          rotation={[-Math.PI / 2, 0, 0]}
-          position={[p.x, 0.015, p.z]}
-          scale={[p.w, p.d, 1]}
+          position={[p.x, 0.02, p.z]}
+          scale={[p.w, 0.04, p.d]}
         />
       ))}
     </group>
