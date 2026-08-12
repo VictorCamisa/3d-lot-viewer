@@ -34,7 +34,9 @@ function Home() {
   const { user, isAdmin, loading: authLoading } = useAuth();
   const [dbLots, setDbLots] = useState<Lot[]>([]);
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [showHouses, setShowHouses] = useState(true);
+
 
 
   const load = useCallback(async () => {
