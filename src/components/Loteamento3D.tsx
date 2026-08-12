@@ -3,6 +3,8 @@ import { OrbitControls, Billboard, Html } from "@react-three/drei";
 import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { Database } from "@/integrations/supabase/types";
+import { House } from "@/components/House3D";
+import { HOUSE_PLOTS } from "@/lib/houses";
 import {
   GREEN_AREAS,
   INSTITUTIONAL,
@@ -101,12 +103,12 @@ function LotMesh({
   const [hover, setHover] = useState(false);
   const groupRef = useRef<THREE.Group>(null);
   const color = STATUS_COLORS[lot.status];
-  const height = 0.6;
+  const height = 0.12;
   const fontSize = Math.min(Math.min(lot.width, lot.depth) * 0.42, lot.width * 0.28);
 
   useFrame(() => {
     if (!groupRef.current) return;
-    const targetY = hover || selected ? 1.6 : 0;
+    const targetY = hover || selected ? 0.35 : 0;
     groupRef.current.position.y += (targetY - groupRef.current.position.y) * 0.15;
   });
 
@@ -337,10 +339,12 @@ export function Loteamento3D({
   lots,
   selectedNumber,
   onSelect,
+  showHouses = true,
 }: {
   lots: LotView[];
   selectedNumber: number | null;
   onSelect: (l: LotView) => void;
+  showHouses?: boolean;
 }) {
   const center = useMemo(
     () => new THREE.Vector3((SITE.minX + SITE.maxX) / 2, 0, (SITE.minZ + SITE.maxZ) / 2),
@@ -411,6 +415,9 @@ export function Loteamento3D({
         <QuadraLabel key={q.quadra} {...q} />
       ))}
 
+      {showHouses &&
+        HOUSE_PLOTS.map((h) => <House key={h.lots.join("-")} plot={h} />)}
+
       {lots.map((lot) => (
         <LotMesh
           key={lot.number}
@@ -422,11 +429,13 @@ export function Loteamento3D({
 
       <OrbitControls
         enableDamping
+        makeDefault
         target={center}
-        maxPolarAngle={Math.PI / 2.15}
-        minDistance={30}
-        maxDistance={700}
+        maxPolarAngle={Math.PI / 2.05}
+        minDistance={8}
+        maxDistance={900}
       />
+
     </Canvas>
   );
 }

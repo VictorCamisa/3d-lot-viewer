@@ -35,6 +35,9 @@ function Home() {
   const [dbLots, setDbLots] = useState<Lot[]>([]);
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [showHouses, setShowHouses] = useState(true);
+
+
 
   const load = useCallback(async () => {
     const { data, error } = await supabase.from("lots").select("*").order("number");
@@ -109,6 +112,13 @@ function Home() {
         </div>
 
         <div className="pointer-events-auto flex items-center gap-2">
+          <Button
+            variant={showHouses ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowHouses((v) => !v)}
+          >
+            {showHouses ? "Casas: ON" : "Casas: OFF"}
+          </Button>
           {!authLoading && user ? (
             <>
               {isAdmin && (
@@ -160,7 +170,12 @@ function Home() {
           </div>
         }
       >
-        <Loteamento3D lots={lots} selectedNumber={selectedNumber} onSelect={handleSelect} />
+        <Loteamento3D
+          lots={lots}
+          selectedNumber={selectedNumber}
+          onSelect={handleSelect}
+          showHouses={showHouses}
+        />
       </ClientOnly>
 
       <LotDetailSheet
