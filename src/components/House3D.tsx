@@ -165,8 +165,8 @@ export function House({ plot }: { plot: HousePlot }) {
 
   return (
     <group position={[plot.x, 0, plot.z]} rotation={[0, plot.rotationY, 0]}>
-      {/* gramado */}
-      <B p={[0, 0.08, 0]} s={[lotW - 0.8, 0.16, lotD - 0.8]} m={M.lawn} />
+      {/* o terreno colorido (status do lote) faz as vezes de gramado */}
+
 
       {/* calçada / entrada de carro */}
       <B p={[-bw / 2 + garageW / 2, 0.18, lotD / 2 - (lotD / 2 - (bz + bd / 2)) / 2]} s={[garageW, 0.06, lotD / 2 - (bz + bd / 2)]} m={M.drive} />
