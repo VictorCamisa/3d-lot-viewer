@@ -103,7 +103,7 @@ function LotMesh({
   const [hover, setHover] = useState(false);
   const groupRef = useRef<THREE.Group>(null);
   const color = STATUS_COLORS[lot.status];
-  const height = 0.14;
+  const height = 0.12;
   const fontSize = Math.min(Math.min(lot.width, lot.depth) * 0.42, lot.width * 0.28);
 
   useFrame(() => {
