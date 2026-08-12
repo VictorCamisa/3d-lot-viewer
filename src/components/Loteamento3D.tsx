@@ -337,10 +337,12 @@ export function Loteamento3D({
   lots,
   selectedNumber,
   onSelect,
+  showHouses = true,
 }: {
   lots: LotView[];
   selectedNumber: number | null;
   onSelect: (l: LotView) => void;
+  showHouses?: boolean;
 }) {
   const center = useMemo(
     () => new THREE.Vector3((SITE.minX + SITE.maxX) / 2, 0, (SITE.minZ + SITE.maxZ) / 2),
