@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import * as THREE from "three";
 import type { HousePlot } from "@/lib/houses";
 import { G, mat, rng } from "@/lib/three-assets";
 import { Car, ContactShadow, HOUSE_EXTRA_M, P } from "@/components/Props3D";
@@ -460,5 +459,3 @@ export function House({ plot }: { plot: HousePlot }) {
     </group>
   );
 }
-
-export type { THREE };
