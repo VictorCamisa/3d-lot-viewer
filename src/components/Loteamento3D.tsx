@@ -3,6 +3,8 @@ import { OrbitControls, Billboard, Html } from "@react-three/drei";
 import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { Database } from "@/integrations/supabase/types";
+import { House } from "@/components/House3D";
+import { HOUSE_PLOTS } from "@/lib/houses";
 import {
   GREEN_AREAS,
   INSTITUTIONAL,
