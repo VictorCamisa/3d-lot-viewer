@@ -112,6 +112,13 @@ function Home() {
         </div>
 
         <div className="pointer-events-auto flex items-center gap-2">
+          <Button
+            variant={showHouses ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowHouses((v) => !v)}
+          >
+            {showHouses ? "Casas: ON" : "Casas: OFF"}
+          </Button>
           {!authLoading && user ? (
             <>
               {isAdmin && (
