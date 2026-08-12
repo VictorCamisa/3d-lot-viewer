@@ -413,6 +413,9 @@ export function Loteamento3D({
         <QuadraLabel key={q.quadra} {...q} />
       ))}
 
+      {showHouses &&
+        HOUSE_PLOTS.map((h) => <House key={h.lots.join("-")} plot={h} />)}
+
       {lots.map((lot) => (
         <LotMesh
           key={lot.number}
@@ -424,11 +427,13 @@ export function Loteamento3D({
 
       <OrbitControls
         enableDamping
+        makeDefault
         target={center}
-        maxPolarAngle={Math.PI / 2.15}
-        minDistance={30}
-        maxDistance={700}
+        maxPolarAngle={Math.PI / 2.05}
+        minDistance={8}
+        maxDistance={900}
       />
+
     </Canvas>
   );
 }
