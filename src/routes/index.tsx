@@ -170,7 +170,12 @@ function Home() {
           </div>
         }
       >
-        <Loteamento3D lots={lots} selectedNumber={selectedNumber} onSelect={handleSelect} />
+        <Loteamento3D
+          lots={lots}
+          selectedNumber={selectedNumber}
+          onSelect={handleSelect}
+          showHouses={showHouses}
+        />
       </ClientOnly>
 
       <LotDetailSheet
